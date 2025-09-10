@@ -7,4 +7,10 @@ export default defineConfig({
     react(),
     tailwindcss()
   ],
+  server: {
+    proxy: {
+      '/api': 'https://fb8e644b3afa.ngrok-free.app',
+    }
+  }
 })
+

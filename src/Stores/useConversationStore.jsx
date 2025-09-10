@@ -2,7 +2,7 @@
 import { create } from "zustand";
 import { Client } from "@twilio/conversations";
 // import { getAllUsers } from "../Services/userService";
-import {updateTypingIndicator}  from "../utils/updateTypingIndicator";
+import {updateTypingIndicator}  from "../Utils/updateTypingIndicator";
 
 
 const useConversationStore = create((set, get) => ({

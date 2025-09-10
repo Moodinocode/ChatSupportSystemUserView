@@ -4,12 +4,6 @@ import CoversationChatInterface from '../Components/ChatComponents/ConversationC
 import useConversationStore from '../Stores/useConversationStore'
 // import Navbar from '../Components/Navbar'
 const ChatPage = () => {
-  const {initClient} = useConversationStore();
-
-  useEffect(() => {
-    initClient();
-  }
-  , [initClient]);
   return (
     <div className='flex flex-col h-screen'>
         {/* <Navbar/> */}

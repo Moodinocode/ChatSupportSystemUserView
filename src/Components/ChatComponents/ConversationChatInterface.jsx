@@ -3,17 +3,24 @@ import useConversationStore from "../../Stores/useConversationStore";
 import { useAuth } from "../../Context/AuthContext";
 import ChatMessage from './ChatMessage';
 import TypingIndicator from './TypingIndicator';
+import { initiateConversation } from '../../Services/ConversationService';
 
 const CustomerServiceChatInterface = () => {
-  const { activeConversation, sendMessage } = useConversationStore();
+  const { initClient,activeConversation, sendMessage } = useConversationStore();
   const { user } = useAuth();
   const [newMessage, setNewMessage] = useState("");
   const messagesEndRef = useRef(null);
 
   
-  const inActiveConversationMessageHandler = (message) => {
-    // Custom logic to handle message when no active conversation
-    console.log("No active conversation. Message not sent:", message);
+  const inactiveConversationMessageHandler = (message) => {
+    // send API request to get Token and create a covnersation
+    initiateConversation(message).then((response) => {
+      console.log("Conversation initiated", response.data);
+    }).catch((error) => {
+      console.error("Error initiating conversation", error);
+    });
+    // then send the message
+    
   }
 
   const scrollToBottom = () => {
@@ -26,7 +33,7 @@ const CustomerServiceChatInterface = () => {
     if (activeConversation) {
       sendMessage(activeConversation.conversation.sid, newMessage);
     } else {
-      inActiveConversationMessageHandler(newMessage); // Custom handler when no active conversation
+      inactiveConversationMessageHandler(newMessage); // Custom handler when no active conversation
     }
 
     setNewMessage("");

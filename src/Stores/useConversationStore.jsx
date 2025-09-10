@@ -15,7 +15,7 @@ const useConversationStore = create((set, get) => ({
  
 
 
-  // ----------- Init Client ------------
+  //since customer --> init on first message sent
   initClient: async () => {
     try {
       const token = sessionStorage.getItem("twilioToken");

@@ -17,11 +17,11 @@ const LoginPage = () => {
   const handleSubmit = (e) => {
     e.preventDefault()
     login(userDetails).then((response)=>{
-      const { token, ...userData } = response.data;
-      sessionStorage.setItem("token", `${token}`);
+      const { authToken, ...userData } = response.data;
+      sessionStorage.setItem("token", `${authToken}`);
       sessionStorage.setItem("user", JSON.stringify(userData));
       console.log("logging in")
-      navigate('/home')
+      navigate('/')
     }).catch((error) => console.log(error))
 
   }

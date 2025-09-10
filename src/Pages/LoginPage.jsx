@@ -22,7 +22,7 @@ const LoginPage = () => {
       sessionStorage.setItem("user", JSON.stringify(userData));
       console.log("logging in")
       navigate('/')
-    }).catch((error) => console.log(error))
+    }).catch((error) => console.error(error))
 
   }
 

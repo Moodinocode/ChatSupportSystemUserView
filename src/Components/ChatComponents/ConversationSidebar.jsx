@@ -1,10 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import  useConversationStore  from '../../Stores/useConversationStore';
-// import CreateConversationModal from './CreateConversationModal';
-// import Spinner from '../Spinner';
 
 const ConversationSidebar = () => {
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const {
     conversations,
     activeConversation,
@@ -52,15 +49,8 @@ const ConversationSidebar = () => {
           <div className="bg-success-content-100 flex flex-col h-full">
             <div className="p-4 border-b flex-shrink-0">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-lg font-semibold">Conversations</h2>
+                <h2 className="text-lg font-semibold">Tickets</h2>
                 <div className="flex gap-2">
-                  <button 
-                    className="btn btn-primary btn-sm"
-                    onClick={() => setIsModalOpen(true)}
-                    title="Create new conversation"
-                  >
-                    +
-                  </button>
                   <button 
                     onClick={() => setShowSidebar(false)}
                     className="btn btn-ghost btn-sm"
@@ -74,21 +64,18 @@ const ConversationSidebar = () => {
               <div>
                 <input
                   type="text"
-                  placeholder="Search conversations..."
+                  placeholder="Search Tickets"
                   className="input input-bordered input-sm w-full text-xs"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
-              
-              {/* {isModalOpen && <CreateConversationModal setIsModalOpen={setIsModalOpen} />} */}
-            </div>
+          </div>
 
             {/* Conversation List - with proper scrolling */}
             <div className="flex-1 overflow-y-auto">
               {loading && (
                 <div className="flex justify-center items-center h-full p-4">
-               {/* <Spinner /> */}
                </div>
               )}
               {filteredConversations.map((convData) => (

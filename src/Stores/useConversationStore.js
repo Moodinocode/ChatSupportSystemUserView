@@ -22,9 +22,12 @@ const useConversationStore = create((set, get) => ({
       if (!token) throw new Error("Missing Twilio token in session storage");
     
       const client = new Client(token);
-      
 
 
+      client.on('initialized', () => {
+        console.log("Twilio client initialized");
+        //get().getConversations();
+      });
       client.on("conversationLeft", (conv) => {
         // console.log("Left:", conv.sid);
         const { conversations } = get();
@@ -48,13 +51,21 @@ const useConversationStore = create((set, get) => ({
 
       client.on("participantJoined", (participant) => {
         // console.log("Participant joined:", participant.identity);
+
+        // we can also decide to render the agentX joined conversation
         get().updateParticipants(participant.conversation.sid);
+      });
+
+      client.on("disconnected", () => {
+        console.warn("Twilio client disconnected");
+        set({ client: null, loading: false });
       });
 
       set({ client, loading: false });
       
       // Fetch initial conversations
-      await get().getConversations();
+      // await get().getConversations();
+      return client;
       
     } catch (err) {
       console.error("Error initializing Twilio client:", err);
@@ -196,6 +207,25 @@ setTypingEnded: (conversationSid, participant) => {
     set({ conversations: updated });
   },
 
+  getConversationBySid: async (sid) => {
+    const { client } = get();
+    console.log("Fetching conversation by SID:", sid);
+    if (!client) {
+      console.error("Twilio client not initialized yet");
+      return null;
+    }
+    try {
+    console.log("Twilio client exists, fetching conversation...");
+    const conv = await client.getConversationBySid(sid);
+    console.log("Fetched conversation:", conv);
+    return conv;
+    } catch (error) {
+      console.error("Error fetching conversation:", error);
+      return null;
+    }
+  },
+  
+
   // ----------- Actions ------------
   getConversations: async () => {
     set({ loading: true, error: null });
@@ -245,14 +275,11 @@ set({ activeConversation: builtconversation });
 set((state) => ({
   conversations: state.conversations.map((c) =>
     c.conversation.sid === builtconversation.conversation.sid
-      ? { ...c, ...builtconversation, lastActivity: c.lastActivity } // keep old lastActivity
+      ? { ...c, ...builtconversation, lastActivity: c.lastActivity }
       : c
   ),
 }));
 
-
-
-// Attach typing listeners to the Twilio conversation object
 conversation.on('typingStarted', function(participant) {
   console.log("Typing started by:", participant.identity);
   updateTypingIndicator(participant, true);
@@ -262,51 +289,64 @@ conversation.on('typingEnded', function(participant) {
   updateTypingIndicator(participant, false);
 });
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    
-
   } catch (error) {
     console.error("Error fetching conversation:", error);
   }
 },
 
-leaveConversation: async (sid) => {
-    const { client, activeConversation, conversations } = get();
-    if (!client) return;
-    try {
-      const conv = await client.getConversationBySid(sid);
-      await conv.leave();
-      set({
-        conversations: conversations.filter((c) => c.conversation.sid !== sid),
-        activeConversation:
-          activeConversation?.conversation.sid === sid
-            ? null
-            : activeConversation,
-      });
-    } catch (error) {
-      console.error("Error leaving conversation:", error);
+
+getFirstConversationAndSetActive: async () => {
+  try {
+    const { client } = get();
+    if (!client) {
+      console.error("Twilio client not initialized yet");
+      return null;
     }
-  },
+
+    console.log("Getting first subscribed conversation...");
+    
+    const convs = await client.getSubscribedConversations();
+    console.log("All subscribed conversations:", convs.items);
+    
+    if (convs.items.length === 0) {
+      console.error("No subscribed conversations found");
+      return null;
+    }
+    
+
+    const twilioConv = convs.items[0];//assuming there is only 1 message
+    console.log("Using first conversation:", twilioConv.sid);
+    
+    const conversation = await get().buildConversationData(twilioConv);
+    
+    if (!conversation) {
+      console.error("Failed to build conversation data");
+      return null;
+    }
+
+
+    console.log("Setting conversation as active:", conversation);
+    
+
+    conversation.unreadCount = 0;
+    set({ activeConversation: conversation });
+    
+    set((state) => ({
+      conversations: state.conversations.map((c) =>
+        c.conversation.sid === conversation.conversation.sid
+          ? { ...c, ...conversation, lastActivity: c.lastActivity } // keep old lastActivity
+          : c
+      ),
+    }));
+
+    return conversation;
+    
+  } catch (error) {
+    console.error("Error getting first conversation:", error);
+    return null;
+  }
+},
   
-
-
-
-
   sendMessage: async (sid, body) => {
     const { client } = get();
     if (!client) return;
@@ -319,84 +359,19 @@ leaveConversation: async (sid) => {
   }
   },
 
-  createConversation: async (newConversationName,selectedUsers) => {
+  addParticipantByIdentity: async (sid, identity) => {
     const { client } = get();
     if (!client) return;
-
     try {
-      console.log("Creating conversation:", newConversationName, "with users:", selectedUsers);
-      const conversation = await client.createConversation({
-        attributes: {},
-        friendlyName: newConversationName,
-        uniqueName: newConversationName+ Math.random().toString(36).substring(2, 15), 
-      });
-      console.log("Conversation created:", conversation.sid);
-      
-      get().addParticipants(conversation.sid, selectedUsers).then(() => {
-        console.log("Participants added successfully")
-        }
-        ).catch((error) => {
-          console.error("Error adding participants:", error);
-        }
-      );
-      
-      // if (selectedUsers && selectedUsers.length > 0) {
-      //   await Promise.all(
-      //     selectedUsers.map((user) => conversation.add(participant))
-      //   );
-      // }
-
-      get().syncConversation(conversation);
-      return conversation;
+      const conv = await client.getConversationBySid(sid);
+      await conv.add(identity);
+      updateParticipants(sid);
+      console.log(`Participant ${identity} added to conversation ${sid}`);
     } catch (error) {
-      console.error("Error creating conversation:", error);
-      throw error;
+      console.error("Error adding participant:", error);
     }
   },
 
-addParticipants: async (sid, participants) => {
-  const { client } = get();
-  if (!client) return;
-
-  try {
-    const conv = await client.getConversationBySid(sid);
-    // const res = await getAllUsers();
-    const res = [];
-    console.log("Fetched users:", res);
-
-    // Filter users to add
-    const usersToAdd = res.data.filter(u => participants.includes(u.id));
-
-    for (const user of usersToAdd) {
-      const identity = String(user.username); // ensure string
-      console.log(`Adding participant with identity: ${identity}`);
-      
-      try {
-        await conv.add(identity);
-        console.log(`Added participant: ${identity}`);
-      } catch (error) {
-        console.error(`Failed to add participant ${identity}:`, error);
-        //  try {
-        //     await conv.P; // Your function to create the user/identity
-        //     console.log(`Identity created for ${identity}, retrying add...`);
-        //     await conv.add(identity); // Retry adding
-        //     console.log(`Added participant after creating identity: ${identity}`);
-        //   } catch (creationError) {
-        //     console.error(`Failed to create/re-add participant ${identity}:`, creationError);
-        //   }
-      }
-    }
-
-    await get().updateParticipants(sid);
-  } catch (err) {
-    console.error("Failed to add participants:", err);
-  }
-},
-
-
-  removeParticipant: async (sid, participant) => {
-    await apiRemoveParticipant(sid, participant);
-  },
 }));
 
 export default useConversationStore;

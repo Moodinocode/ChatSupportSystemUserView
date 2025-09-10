@@ -6,22 +6,42 @@ import TypingIndicator from './TypingIndicator';
 import { initiateConversation } from '../../Services/ConversationService';
 
 const CustomerServiceChatInterface = () => {
-  const { initClient,activeConversation, sendMessage } = useConversationStore();
+  const { initClient,activeConversation,getFirstConversationAndSetActive,getConversationBySid, sendMessage,addParticipantByIdentity } = useConversationStore();
   const { user } = useAuth();
   const [newMessage, setNewMessage] = useState("");
   const messagesEndRef = useRef(null);
 
   
-  const inactiveConversationMessageHandler = (message) => {
-    // send API request to get Token and create a covnersation
-    initiateConversation(message).then((response) => {
-      console.log("Conversation initiated", response.data);
-    }).catch((error) => {
-      console.error("Error initiating conversation", error);
-    });
-    // then send the message
+const inactiveConversationMessageHandler = async (message) => {
+  try {
+    const response = await initiateConversation(message);
+    const twilioToken = response.data.twilioToken;
+    const conversationId = response.data.conversationId;
+    sessionStorage.setItem("twilioToken", twilioToken);
+    console.log("New conversation initiated with ID:", conversationId);
     
+    const client = await initClient();
+    await new Promise((resolve) => {
+      if (client.state === "initialized") return resolve();
+      client.on("initialized", resolve);
+    });
+
+    // 4. Fetch or create conversation
+    const conversation = await getConversationBySid(conversationId);
+    console.log("Fetched conversation object:", conversation);
+
+    // 5. Add participant (ensure identity matches token!)
+    await addParticipantByIdentity(conversationId, "customer1");
+
+    // 6. Send first message
+    await sendMessage(conversationId, message);
+
+  } catch (error) {
+    console.error("Error initiating conversation", error);
   }
+
+};
+
 
   const scrollToBottom = () => {
     setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);

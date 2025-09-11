@@ -1,15 +1,31 @@
 import React, { useState, useRef } from 'react';
 import useConversationStore from "../../Stores/useConversationStore";
+import { Paperclip } from "lucide-react";
 import { useAuth } from "../../Context/AuthContext";
 import ChatMessage from './ChatMessage';
 import TypingIndicator from './TypingIndicator';
 import { initiateConversation } from '../../Services/ConversationService';
 
 const CustomerServiceChatInterface = () => {
-  const { initClient,activeConversation,getFirstConversationAndSetActive,getConversationBySid, sendMessage,addParticipantByIdentity } = useConversationStore();
+  const { initClient,activeConversation,sendMediaMessage,getConversationBySid, sendMessage } = useConversationStore();
   const { user } = useAuth();
   const [newMessage, setNewMessage] = useState("");
   const messagesEndRef = useRef(null);
+  const fileInputRef = useRef(null);
+
+
+const handleSendMedia = async (file) => {
+  if (!file) return;
+  console.log("media file being uploaded:", file.name);
+
+  if (!activeConversation) {
+    console.log("No active conversation yet, cannot send media.");
+    return;
+  }
+
+  await sendMediaMessage(activeConversation.conversation.sid, file);
+  scrollToBottom();
+};
 
   
 const inactiveConversationMessageHandler = async (message) => {
@@ -26,14 +42,10 @@ const inactiveConversationMessageHandler = async (message) => {
       client.on("initialized", resolve);
     });
 
-    // 4. Fetch or create conversation
     const conversation = await getConversationBySid(conversationId);
     console.log("Fetched conversation object:", conversation);
 
-    // 5. Add participant (ensure identity matches token!)
-    await addParticipantByIdentity(conversationId, "customer1");
 
-    // 6. Send first message
     await sendMessage(conversationId, message);
 
   } catch (error) {
@@ -82,6 +94,7 @@ const inactiveConversationMessageHandler = async (message) => {
             <ChatMessage
               key={msg.sid}
               message={msg.body}
+              media={msg.media}
               isCurrentUser={isCurrentUserMessage(msg)}
               author={msg.author}
               profileImageUrl={getUserProfileImage(msg.author)}
@@ -104,7 +117,23 @@ const inactiveConversationMessageHandler = async (message) => {
       {/* Input */}
       <div className="border-t p-4 bg-base-200">
         <div className="flex gap-2 items-end">
+          <input
+            type="file"
+            accept="image/*,video/*"
+            onChange={(e) => handleSendMedia(e.target.files[0])}
+            className="hidden"
+            ref={fileInputRef}
+          />
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <Paperclip className="w-4 h-4" />
+          </button>
+
+
           <div className="flex-1 relative">
+
             <input
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}

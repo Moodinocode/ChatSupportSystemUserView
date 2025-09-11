@@ -9,7 +9,7 @@ export default defineConfig({
   ],
   server: {
     proxy: {
-      '/api': 'https://3.135.84.10',
+      '/api': 'https://3.135.84.10:8080',
     }
 
 

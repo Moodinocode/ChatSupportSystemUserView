@@ -4,6 +4,8 @@ import LoginPage from "./Pages/LoginPage";
 import RegistrationPage from "./Pages/RegistrationPage";
 import ChatPage from "./Pages/ChatPage";
 import { AuthProvider } from "./Context/AuthContext";
+import { ToastContainer } from 'react-toastify';
+
 function App() {
 
   const router = createBrowserRouter(
@@ -28,6 +30,18 @@ function App() {
   return (
     <AuthProvider>
       <RouterProvider router={router} />
+      <ToastContainer
+          position="bottom-right"
+          autoClose={5000}
+          hideProgressBar={false}
+          newestOnTop={false}
+          closeOnClick={false}
+          rtl={false}
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+          theme="colored"
+        />
     </AuthProvider>
   )
   }

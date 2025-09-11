@@ -5,7 +5,8 @@ const ChatMessage = ({
   isCurrentUser, 
   author, 
   profileImageUrl, 
-  timestamp 
+  timestamp,
+  media // <-- new prop for media
 }) => {
   return (
     <div className={`chat ${isCurrentUser ? 'chat-end' : 'chat-start'}`}>
@@ -17,18 +18,37 @@ const ChatMessage = ({
           />
         </div>
       </div>
+
       <div className="chat-header">
         {author}
         <time className="text-xs opacity-50 ml-2">
-          {timestamp.toLocaleTimeString([], { 
-            hour: '2-digit', 
-            minute: '2-digit' 
-          })}
+          {timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         </time>
       </div>
+
       <div className="chat-bubble">
-        {message}
+        {media ? (
+          media.contentType.startsWith("image/") ? (
+            <img 
+              src={media.url} 
+              alt="sent media" 
+              className="max-w-xs rounded" 
+            />
+          ) : media.contentType.startsWith("video/") ? (
+            <video controls className="max-w-xs rounded">
+              <source src={media.url} type={media.contentType} />
+              Your browser does not support the video tag.
+            </video>
+          ) : (
+            <a href={media.url} target="_blank" rel="noreferrer" className="text-blue-500 underline">
+              Download file
+            </a>
+          )
+        ) : (
+          message
+        )}
       </div>
+
       <div className="chat-footer opacity-50">
         {isCurrentUser ? 'Delivered' : ''}
       </div>

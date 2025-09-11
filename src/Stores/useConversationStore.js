@@ -3,6 +3,7 @@ import { create } from "zustand";
 import { Client } from "@twilio/conversations";
 // import { getAllUsers } from "../Services/userService";
 import {updateTypingIndicator}  from "../Utils/updateTypingIndicator";
+import {toast} from 'react-toastify';
 
 
 const useConversationStore = create((set, get) => ({
@@ -104,22 +105,30 @@ setTypingEnded: (conversationSid, participant) => {
   buildConversationData: async (conv) => {
     const participants = await conv.getParticipants();
     const messagesPaginator = await conv.getMessages(20); // last 20 messages
-     console.log("Conversation data built:", conv);
-    return {
-      conversation: { sid: conv.sid, friendlyName: conv.friendlyName },
-      unreadCount: await conv.getUnreadMessagesCount(),
-      participants,
-      lastActivity: messagesPaginator.items.length > 0
-  ? messagesPaginator.items[messagesPaginator.items.length - 1].dateCreated.getTime()
-  : 0, // or keep the previous lastActivity instead of defaulting to now
-
-      messages: messagesPaginator.items.map((m) => ({
+    
+    const messages = await Promise.all(messagesPaginator.items.map(async (m) => ({
         sid: m.sid,
         author: m.author,
         body: m.body,
         timestamp: m.dateCreated,
-      })),
-    };
+        media: m.media
+          ? { 
+              url: await m.media.getContentTemporaryUrl(), 
+              contentType: m.media.contentType,
+              filename: m.media.filename
+            }
+          : null,
+      })));
+      return {
+        conversation: { sid: conv.sid, friendlyName: conv.friendlyName },
+        unreadCount: await conv.getUnreadMessagesCount(),
+        participants,
+        lastActivity: messagesPaginator.items.length > 0
+          ? messagesPaginator.items[messagesPaginator.items.length - 1].dateCreated.getTime()
+          : 0,
+        messages
+      };
+
    
 
   },
@@ -144,57 +153,99 @@ setTypingEnded: (conversationSid, participant) => {
     set({ conversations: updated });
   },
 
-    
-  appendMessage: (msg) => {
-    const { conversations, activeConversation } = get();
-    
-    const newMessage = {
-      sid: msg.sid,
-      author: msg.author,
-      body: msg.body,
-      timestamp: msg.dateCreated,
-    };
-
-    // Update conversations array
-    const updated = conversations.map((c) => {
-      if (c.conversation.sid === msg.conversation.sid) {
-        // Check if message already exists to prevent duplicates
-        const messageExists = c.messages.some(m => m.sid === msg.sid);
-        if (messageExists) {
-          return c; // Return unchanged if message already exists
-        }
-        
-        return {
-          ...c,
-          messages: [...c.messages, newMessage],
-          lastActivity: Date.now(),
-           unreadCount: 
-    activeConversation && activeConversation.conversation.sid === c.conversation.sid
-      ? 0 // if it's the active conversation, unread stays 0
-      : c.unreadCount + 1,
-        };
-      }
-      return c;
+    appendMessage: (msg) => {
+  const { conversations, activeConversation,client } = get();
+if (msg.author === client.user.identity) {
+    console.log("Skipping toast for my own message:", msg.body);
+  } else {
+    toast.info(`New Notification: Twilio message received`, {
+      position: "bottom-right",
+      autoClose: 5000,
+      hideProgressBar: false,
+      closeOnClick: false,
+      pauseOnHover: true,
+      draggable: true,
+      progress: undefined,
+      theme: "colored",
     });
+  }
 
-    // Update activeConversation if it's the same conversation
-    let updatedActiveConversation = activeConversation;
-    if (activeConversation && activeConversation.conversation.sid === msg.conversation.sid) {
-      const messageExists = activeConversation.messages.some(m => m.sid === msg.sid);
-      if (!messageExists) {
-        updatedActiveConversation = {
-          ...activeConversation,
-          messages: [...activeConversation.messages, newMessage],
-          lastActivity: Date.now(),
-        };
-      }
+  const newMessage = {
+    sid: msg.sid,
+    author: msg.author,
+    body: msg.body,
+    timestamp: msg.dateCreated,
+    media: msg.media || null,         // store media object
+    mediaUrl: null,                    // will fetch URL later
+    loadingMedia: msg.media ? true : false, // loading flag
+  };
+
+  // Update conversations array
+  const updated = conversations.map((c) => {
+    if (c.conversation.sid === msg.conversation.sid) {
+      const messageExists = c.messages.some(m => m.sid === msg.sid);
+      if (messageExists) return c;
+
+      return {
+        ...c,
+        messages: [...c.messages, newMessage],
+        lastActivity: Date.now(),
+        unreadCount:
+          activeConversation && activeConversation.conversation.sid === c.conversation.sid
+            ? 0
+            : c.unreadCount + 1,
+      };
     }
+    return c;
+  });
 
-    set({ 
-      conversations: updated, 
-      activeConversation: updatedActiveConversation
+  // Update activeConversation if it's the same conversation
+  let updatedActiveConversation = activeConversation;
+  if (activeConversation && activeConversation.conversation.sid === msg.conversation.sid) {
+    const messageExists = activeConversation.messages.some(m => m.sid === msg.sid);
+    if (!messageExists) {
+      updatedActiveConversation = {
+        ...activeConversation,
+        messages: [...activeConversation.messages, newMessage],
+        lastActivity: Date.now(),
+      };
+    }
+  }
+
+  set({ 
+    conversations: updated, 
+    activeConversation: updatedActiveConversation
+  });
+
+  // ---- Fetch media URL asynchronously ----
+  if (msg.media && msg.media.size > 0) {
+    msg.media.getContentTemporaryUrl().then((url) => {
+      const updatedConversations = get().conversations.map((c) => {
+        if (c.conversation.sid === msg.conversation.sid) {
+          return {
+            ...c,
+            messages: c.messages.map(m =>
+              m.sid === msg.sid ? { ...m, mediaUrl: url, loadingMedia: false } : m
+            ),
+          };
+        }
+        return c;
+      });
+
+      let updatedActiveConv = get().activeConversation;
+      if (updatedActiveConv && updatedActiveConv.conversation.sid === msg.conversation.sid) {
+        updatedActiveConv = {
+          ...updatedActiveConv,
+          messages: updatedActiveConv.messages.map(m =>
+            m.sid === msg.sid ? { ...m, mediaUrl: url, loadingMedia: false } : m
+          ),
+        };
+      }
+
+      set({ conversations: updatedConversations, activeConversation: updatedActiveConv });
     });
-  },
+  }
+},
 
   updateParticipants: async (sid) => {
     const { conversations, client } = get();
@@ -241,6 +292,7 @@ setTypingEnded: (conversationSid, participant) => {
       const conversations = await Promise.all(
         convs.items.map((conv) => get().buildConversationData(conv))
       );
+      console.log("Built conversation data:", conversations);
       set({ conversations, loading: false });
     } catch (error) {
       console.error("Error fetching conversations:", error);
@@ -284,6 +336,7 @@ conversation.on('typingStarted', function(participant) {
   console.log("Typing started by:", participant.identity);
   updateTypingIndicator(participant, true);
 });
+
 
 conversation.on('typingEnded', function(participant) {
   updateTypingIndicator(participant, false);
@@ -359,18 +412,26 @@ getFirstConversationAndSetActive: async () => {
   }
   },
 
-  addParticipantByIdentity: async (sid, identity) => {
-    const { client } = get();
-    if (!client) return;
-    try {
-      const conv = await client.getConversationBySid(sid);
-      await conv.add(identity);
-      updateParticipants(sid);
-      console.log(`Participant ${identity} added to conversation ${sid}`);
-    } catch (error) {
-      console.error("Error adding participant:", error);
-    }
-  },
+
+sendMediaMessage: async (sid, file) => {
+  const { client } = get();
+  if (!client) return;
+
+  try {
+    const conv = await client.getConversationBySid(sid);
+
+    const formData = new FormData();
+    formData.append("media", file);
+
+    const messageIndex = await conv.sendMessage(formData);
+    console.log("Media message sent:", messageIndex);
+
+
+  } catch (error) {
+    console.error("Error sending media message:", error);
+  }
+}
+
 
 }));
 

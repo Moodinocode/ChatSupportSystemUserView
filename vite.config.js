@@ -9,8 +9,10 @@ export default defineConfig({
   ],
   server: {
     proxy: {
-      '/api': 'https://fb8e644b3afa.ngrok-free.app',
+      '/api': 'https://3.135.84.10',
     }
+
+
   }
 })
 

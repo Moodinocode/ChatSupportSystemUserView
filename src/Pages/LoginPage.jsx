@@ -4,6 +4,7 @@ import {Link, useNavigate} from 'react-router-dom'
 import { useState,useContext } from 'react'
 // import OAuthButton from '../Components/AuthComponents/OAuthButton'
 import { login } from '../Services/authService'
+import {useAuth} from '../Context/AuthContext'
 
 
 const LoginPage = () => {
@@ -12,16 +13,15 @@ const LoginPage = () => {
     password: ''
   });
   const navigate = useNavigate();
+  const { loginUser } = useAuth();
 
 
   const handleSubmit = (e) => {
     e.preventDefault()
     login(userDetails).then((response)=>{
       const { authToken, ...userData } = response.data;
-      sessionStorage.setItem("token", `${authToken}`);
-      sessionStorage.setItem("user", JSON.stringify(userData));
-      console.log("logging in")
-      navigate('/')
+        loginUser(authToken, userData); 
+        navigate('/');
     }).catch((error) => console.error(error))
 
   }

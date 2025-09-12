@@ -6,7 +6,7 @@ const ChatMessage = ({
   author, 
   profileImageUrl, 
   timestamp,
-  media // <-- new prop for media
+  media 
 }) => {
   return (
     <div className={`chat ${isCurrentUser ? 'chat-end' : 'chat-start'}`}>

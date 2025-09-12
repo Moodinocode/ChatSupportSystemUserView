@@ -85,21 +85,21 @@ const useConversationStore = create((set, get) => ({
   };
 
   set({ typingStatus: updated });
-},
+  },
 
-setTypingEnded: (conversationSid, participant) => {
-  const { typingStatus } = get();
-  const updated = { ...typingStatus };
+  setTypingEnded: (conversationSid, participant) => {
+    const { typingStatus } = get();
+    const updated = { ...typingStatus };
 
-  if (updated[conversationSid] && updated[conversationSid][participant.sid]) {
-    updated[conversationSid][participant.sid] = {
-      ...updated[conversationSid][participant.sid],
-      typing: false,
-    };
-  }
+    if (updated[conversationSid] && updated[conversationSid][participant.sid]) {
+      updated[conversationSid][participant.sid] = {
+        ...updated[conversationSid][participant.sid],
+        typing: false,
+      };
+    }
 
-  set({ typingStatus: updated });
-},
+    set({ typingStatus: updated });
+  },
 
   // ----------- Sync Helpers ------------
   buildConversationData: async (conv) => {
@@ -153,7 +153,7 @@ setTypingEnded: (conversationSid, participant) => {
     set({ conversations: updated });
   },
 
-    appendMessage: (msg) => {
+  appendMessage: (msg) => {
   const { conversations, activeConversation,client } = get();
 if (msg.author === client.user.identity) {
     console.log("Skipping toast for my own message:", msg.body);
@@ -245,7 +245,7 @@ if (msg.author === client.user.identity) {
       set({ conversations: updatedConversations, activeConversation: updatedActiveConv });
     });
   }
-},
+  },
 
   updateParticipants: async (sid) => {
     const { conversations, client } = get();
@@ -302,50 +302,50 @@ if (msg.author === client.user.identity) {
 
   },
 
-setActiveConversation: async (active) => {
-  try {
-    const { client } = get(); 
-    if (!client) {
-      console.error("Twilio client not initialized yet");
-      return;
+  setActiveConversation: async (active) => {
+    try {
+      const { client } = get(); 
+      if (!client) {
+        console.error("Twilio client not initialized yet");
+        return;
+      }
+      console.log("Setting active conversation:", active.conversation);
+      // Fetch the conversation
+      const conversation = await client.getConversationBySid(active.conversation.sid);
+      console.log("Active conversation fetched:", conversation);
+
+      const builtconversation = await get().buildConversationData(conversation);
+
+      if (!builtconversation) {
+        console.error("Active conversation not found:", active);
+        return;
+      }
+      console.log("Active conversation set:", builtconversation);
+
+      builtconversation.unreadCount = 0;
+      set({ activeConversation: builtconversation });
+      set((state) => ({
+        conversations: state.conversations.map((c) =>
+          c.conversation.sid === builtconversation.conversation.sid
+            ? { ...c, ...builtconversation, lastActivity: c.lastActivity }
+            : c
+        ),
+      }));
+
+      conversation.on('typingStarted', function(participant) {
+        console.log("Typing started by:", participant.identity);
+        updateTypingIndicator(participant, true);
+      });
+
+
+      conversation.on('typingEnded', function(participant) {
+        updateTypingIndicator(participant, false);
+      });
+
+    } catch (error) {
+      console.error("Error fetching conversation:", error);
     }
-    console.log("Setting active conversation:", active.conversation);
-    // Fetch the conversation
-    const conversation = await client.getConversationBySid(active.conversation.sid);
-console.log("Active conversation fetched:", conversation);
-
-const builtconversation = await get().buildConversationData(conversation);
-
-if (!builtconversation) {
-  console.error("Active conversation not found:", active);
-  return;
-}
-console.log("Active conversation set:", builtconversation);
-
-builtconversation.unreadCount = 0;
-set({ activeConversation: builtconversation });
-set((state) => ({
-  conversations: state.conversations.map((c) =>
-    c.conversation.sid === builtconversation.conversation.sid
-      ? { ...c, ...builtconversation, lastActivity: c.lastActivity }
-      : c
-  ),
-}));
-
-conversation.on('typingStarted', function(participant) {
-  console.log("Typing started by:", participant.identity);
-  updateTypingIndicator(participant, true);
-});
-
-
-conversation.on('typingEnded', function(participant) {
-  updateTypingIndicator(participant, false);
-});
-
-  } catch (error) {
-    console.error("Error fetching conversation:", error);
-  }
-},
+  },
 
 
 getFirstConversationAndSetActive: async () => {
@@ -400,37 +400,41 @@ getFirstConversationAndSetActive: async () => {
   }
 },
   
-  sendMessage: async (sid, body) => {
+  sendMessage: async (sid, { text, file }) => {
     const { client } = get();
     if (!client) return;
+
     try {
-    const conv = await client.getConversationBySid(sid);
-    const mes = await conv.sendMessage(body);
-    console.log("Message sent:", mes);
-  } catch (error) {
-    console.error("Error sending message:", error);
+      const conv = await client.getConversationBySid(sid);
+
+
+      if (text && !file) {
+        const messageIndex = await conv.sendMessage(text);
+        return;
+      }
+
+      if (!text && file) {
+        const formData = new FormData();
+        formData.append("media", file);
+
+        const messageIndex = await conv.sendMessage(formData);
+        console.log("Media message sent:", messageIndex);
+        return;
+      }
+
+      if (text && file) {
+        const formData = new FormData();
+        formData.append("media", file);
+
+        const messageIndex = await conv.sendMessage(formData, { body: text });
+        console.log("Text + Media message sent:", messageIndex);
+        return;
+      }
+    } catch (error) {
+      console.error("Error sending message:", error);
+    }
   }
-  },
 
-
-sendMediaMessage: async (sid, file) => {
-  const { client } = get();
-  if (!client) return;
-
-  try {
-    const conv = await client.getConversationBySid(sid);
-
-    const formData = new FormData();
-    formData.append("media", file);
-
-    const messageIndex = await conv.sendMessage(formData);
-    console.log("Media message sent:", messageIndex);
-
-
-  } catch (error) {
-    console.error("Error sending media message:", error);
-  }
-}
 
 
 }));

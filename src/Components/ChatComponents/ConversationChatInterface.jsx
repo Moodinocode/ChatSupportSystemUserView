@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState,useEffect, useRef } from 'react';
 import useConversationStore from "../../Stores/useConversationStore";
 import { Paperclip } from "lucide-react";
 import { useAuth } from "../../Context/AuthContext";
@@ -7,47 +7,35 @@ import TypingIndicator from './TypingIndicator';
 import { initiateConversation } from '../../Services/ConversationService';
 
 const CustomerServiceChatInterface = () => {
-  const { initClient,activeConversation,sendMediaMessage,getConversationBySid, sendMessage } = useConversationStore();
+  const { initClient,setActiveConversation,activeConversation,sendMediaMessage,getConversationBySid, sendMessage } = useConversationStore();
   const { user } = useAuth();
+  const [selectedFile, setSelectedFile] = useState(null);
   const [newMessage, setNewMessage] = useState("");
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
 
-
-const handleSendMedia = async (file) => {
-  if (!file) return;
-  console.log("media file being uploaded:", file.name);
-
-  if (!activeConversation) {
-    console.log("No active conversation yet, cannot send media.");
-    return;
+  useEffect(() => {
+  if (activeConversation?.messages.length) {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }
-
-  await sendMediaMessage(activeConversation.conversation.sid, file);
-  scrollToBottom();
-};
+}, [activeConversation?.messages.length]);
 
   
-const inactiveConversationMessageHandler = async (message) => {
+const inactiveConversationMessageHandler = async (message,file=null) => {
   try {
     const response = await initiateConversation(message);
     const twilioToken = response.data.twilioToken;
     const conversationId = response.data.conversationId;
     sessionStorage.setItem("twilioToken", twilioToken);
-    console.log("New conversation initiated with ID:", conversationId);
-    
+
     const client = await initClient();
     await new Promise((resolve) => {
       if (client.state === "initialized") return resolve();
       client.on("initialized", resolve);
     });
 
-    const conversation = await getConversationBySid(conversationId);
-    console.log("Fetched conversation object:", conversation);
-
-
-    await sendMessage(conversationId, message);
-
+    await setActiveConversation({ conversation: { sid: conversationId } });
+    await sendMessage(conversationId, { text: message, file });
   } catch (error) {
     console.error("Error initiating conversation", error);
   }
@@ -55,30 +43,30 @@ const inactiveConversationMessageHandler = async (message) => {
 };
 
 
-  const scrollToBottom = () => {
-    setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
-  };
-
   const handleSend = () => {
-    if (!newMessage.trim()) return;
+    const trimmedMessage = newMessage.trim();
+    if (!trimmedMessage && !selectedFile) return; 
 
     if (activeConversation) {
-      sendMessage(activeConversation.conversation.sid, newMessage);
+      sendMessage(activeConversation.conversation.sid, {
+        text: trimmedMessage || null,
+        file: selectedFile || null,
+      });
     } else {
-      inactiveConversationMessageHandler(newMessage); // Custom handler when no active conversation
+      inactiveConversationMessageHandler(trimmedMessage || null, selectedFile || null);
     }
 
     setNewMessage("");
-    scrollToBottom();
+    setSelectedFile(null);
   };
 
 
-  const isCurrentUserMessage = (message) => message.author === user?.username;
 
   const getUserProfileImage = (username) => {
     if (username === user?.username) return user?.profileImageUrl;
     return null; // No other participants to show
   };
+
 
   return (
     <div className="flex-1 flex flex-col">
@@ -95,7 +83,7 @@ const inactiveConversationMessageHandler = async (message) => {
               key={msg.sid}
               message={msg.body}
               media={msg.media}
-              isCurrentUser={isCurrentUserMessage(msg)}
+              isCurrentUser={msg.author === user.username}
               author={msg.author}
               profileImageUrl={getUserProfileImage(msg.author)}
               timestamp={msg.timestamp}
@@ -116,11 +104,17 @@ const inactiveConversationMessageHandler = async (message) => {
 
       {/* Input */}
       <div className="border-t p-4 bg-base-200">
+        {selectedFile && (
+          <div className="p-2 text-sm text-gray-600">
+            Selected file: {selectedFile.name}
+          </div>
+        )}
+
         <div className="flex gap-2 items-end">
           <input
             type="file"
             accept="image/*,video/*"
-            onChange={(e) => handleSendMedia(e.target.files[0])}
+            onChange={(e) => setSelectedFile(e.target.files[0])}
             className="hidden"
             ref={fileInputRef}
           />
@@ -145,7 +139,7 @@ const inactiveConversationMessageHandler = async (message) => {
           <button
             onClick={handleSend}
             className="btn btn-primary btn-circle"
-            disabled={!newMessage.trim()}
+            disabled={!newMessage.trim()&&!selectedFile}
           >
             <svg
               className="w-5 h-5"

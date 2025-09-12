@@ -18,8 +18,9 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   
-  const loginUser = (authToken, userData) => {
+  const loginUser = (authToken, refresh,userData) => {
     sessionStorage.setItem("token", authToken);
+    sessionStorage.setItem("refreshToken", refresh);
     sessionStorage.setItem("user", JSON.stringify(userData));
     setUser({ token: authToken, ...userData });
   };

@@ -24,7 +24,7 @@ const CustomerServiceChatInterface = () => {
 const inactiveConversationMessageHandler = async (message,file=null) => {
   try {
     const response = await initiateConversation(message);
-    const twilioToken = response.data.twilioToken;
+    const twilioToken = response.data.twilioToken;    
     const conversationId = response.data.conversationId;
     sessionStorage.setItem("twilioToken", twilioToken);
 

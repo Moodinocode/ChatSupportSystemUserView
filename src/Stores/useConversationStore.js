@@ -1,9 +1,8 @@
-// src/store/useConversationStore.js
 import { create } from "zustand";
 import { Client } from "@twilio/conversations";
-// import { getAllUsers } from "../Services/userService";
 import {updateTypingIndicator}  from "../Utils/updateTypingIndicator";
 import {toast} from 'react-toastify';
+import {getToken} from "../Services/twilioService";
 
 
 const useConversationStore = create((set, get) => ({
@@ -25,12 +24,9 @@ const useConversationStore = create((set, get) => ({
       const client = new Client(token);
 
 
-      client.on('initialized', () => {
-        console.log("Twilio client initialized");
-        //get().getConversations();
-      });
+      client.on('initialized', () =>console.log("Twilio client initialized"));
       client.on("conversationLeft", (conv) => {
-        // console.log("Left:", conv.sid);
+        
         const { conversations } = get();
         set({
           conversations: conversations.filter(
@@ -39,35 +35,33 @@ const useConversationStore = create((set, get) => ({
         });
       });
 
-      client.on("conversationAdded", (conv) => {
-        // console.log("Conversation added:", conv.sid);
-        get().syncConversation(conv);
-      });
-
-      client.on("messageAdded", (msg) => {
-        // console.log("Message added:", msg);
-        get().appendMessage(msg);
-      });
+      client.on("conversationAdded", (conv) => get().syncConversation(conv));
+      client.on("messageAdded", (msg) =>  get().appendMessage(msg));
 
 
       client.on("participantJoined", (participant) => {
-        // console.log("Participant joined:", participant.identity);
-
         // we can also decide to render the agentX joined conversation
         get().updateParticipants(participant.conversation.sid);
       });
-
       client.on("disconnected", () => {
         console.warn("Twilio client disconnected");
         set({ client: null, loading: false });
       });
-
       set({ client, loading: false });
-      
-      // Fetch initial conversations
-      // await get().getConversations();
+
+
+      client.on('tokenAboutToExpire', async () => {
+        const refreshToken = await getToken();
+        client.updateToken(refreshToken);
+      })
+
+      client.on('tokenExpired', async () => {
+                const refreshToken = await getToken();
+        client.updateToken(refreshToken);
+      })
+
+
       return client;
-      
     } catch (err) {
       console.error("Error initializing Twilio client:", err);
       set({ error: err.message, loading: false });

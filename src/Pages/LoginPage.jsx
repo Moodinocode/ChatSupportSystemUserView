@@ -19,8 +19,8 @@ const LoginPage = () => {
   const handleSubmit = (e) => {
     e.preventDefault()
     login(userDetails).then((response)=>{
-      const { authToken, ...userData } = response.data;
-        loginUser(authToken, userData); 
+      const { authToken,refresh, ...userData } = response.data;
+        loginUser(authToken,refresh, userData); 
         navigate('/');
     }).catch((error) => console.error(error))
 

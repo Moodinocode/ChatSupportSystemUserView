@@ -4,10 +4,9 @@ import { Paperclip } from "lucide-react";
 import { useAuth } from "../../Context/AuthContext";
 import ChatMessage from './ChatMessage';
 import TypingIndicator from './TypingIndicator';
-import { initiateConversation } from '../../Services/ConversationService';
 
 const CustomerServiceChatInterface = () => {
-  const { initClient,setActiveConversation,activeConversation,sendMediaMessage,getConversationBySid, sendMessage } = useConversationStore();
+  const {activeConversation,inactiveConversationMessageSend, sendMessage } = useConversationStore();
   const { user } = useAuth();
   const [selectedFile, setSelectedFile] = useState(null);
   const [newMessage, setNewMessage] = useState("");
@@ -23,19 +22,7 @@ const CustomerServiceChatInterface = () => {
   
 const inactiveConversationMessageHandler = async (message,file=null) => {
   try {
-    const response = await initiateConversation(message);
-    const twilioToken = response.data.twilioToken;    
-    const conversationId = response.data.conversationId;
-    sessionStorage.setItem("twilioToken", twilioToken);
-
-    const client = await initClient();
-    await new Promise((resolve) => {
-      if (client.state === "initialized") return resolve();
-      client.on("initialized", resolve);
-    });
-
-    await setActiveConversation({ conversation: { sid: conversationId } });
-    await sendMessage(conversationId, { text: message, file });
+    inactiveConversationMessageSend(message,file)
   } catch (error) {
     console.error("Error initiating conversation", error);
   }

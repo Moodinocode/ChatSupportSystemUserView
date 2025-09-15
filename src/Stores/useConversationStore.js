@@ -3,7 +3,7 @@ import { Client } from "@twilio/conversations";
 import {updateTypingIndicator}  from "../Utils/updateTypingIndicator";
 import {toast} from 'react-toastify';
 import {getToken} from "../Services/twilioService";
-
+import { initiateConversation } from '../Services/ConversationService';
 
 const useConversationStore = create((set, get) => ({
   client: null,
@@ -341,59 +341,27 @@ if (msg.author === client.user.identity) {
     }
   },
 
+  inactiveConversationMessageSend: async (message,file) => {
+    const response = await initiateConversation(message);
+    const twilioToken = response.data.twilioToken;    
+    const conversationId = response.data.conversationId;
+    sessionStorage.setItem("twilioToken", twilioToken);
 
-getFirstConversationAndSetActive: async () => {
-  try {
-    const { client } = get();
-    if (!client) {
-      console.error("Twilio client not initialized yet");
-      return null;
-    }
+    const {initClient, setActiveConversation,sendMessage}=get();
 
-    console.log("Getting first subscribed conversation...");
-    
-    const convs = await client.getSubscribedConversations();
-    console.log("All subscribed conversations:", convs.items);
-    
-    if (convs.items.length === 0) {
-      console.error("No subscribed conversations found");
-      return null;
-    }
-    
+    const client = await initClient();
+    await new Promise((resolve) => {
+      if (client.state === "initialized") return resolve();
+      client.on("initialized", resolve);
+    });
 
-    const twilioConv = convs.items[0];//assuming there is only 1 message
-    console.log("Using first conversation:", twilioConv.sid);
     
-    const conversation = await get().buildConversationData(twilioConv);
-    
-    if (!conversation) {
-      console.error("Failed to build conversation data");
-      return null;
-    }
+    await setActiveConversation({ conversation: { sid: conversationId } });
+    await sendMessage(conversationId, { text: message, file });
+  },
 
-
-    console.log("Setting conversation as active:", conversation);
-    
-
-    conversation.unreadCount = 0;
-    set({ activeConversation: conversation });
-    
-    set((state) => ({
-      conversations: state.conversations.map((c) =>
-        c.conversation.sid === conversation.conversation.sid
-          ? { ...c, ...conversation, lastActivity: c.lastActivity } // keep old lastActivity
-          : c
-      ),
-    }));
-
-    return conversation;
-    
-  } catch (error) {
-    console.error("Error getting first conversation:", error);
-    return null;
-  }
-},
   
+ 
   sendMessage: async (sid, { text, file }) => {
     const { client } = get();
     if (!client) return;

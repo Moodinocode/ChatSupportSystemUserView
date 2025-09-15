@@ -341,7 +341,7 @@ if (msg.author === client.user.identity) {
     }
   },
 
-  inactiveConversationMessageSend: async (message,file) => {
+  inactiveConversationMessageSend: async (message,file=null) => {
     const response = await initiateConversation(message);
     const twilioToken = response.data.twilioToken;    
     const conversationId = response.data.conversationId;

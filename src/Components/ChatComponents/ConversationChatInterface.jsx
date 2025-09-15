@@ -19,17 +19,6 @@ const CustomerServiceChatInterface = () => {
   }
 }, [activeConversation?.messages.length]);
 
-  
-const inactiveConversationMessageHandler = async (message,file=null) => {
-  try {
-    inactiveConversationMessageSend(message,file)
-  } catch (error) {
-    console.error("Error initiating conversation", error);
-  }
-
-};
-
-
   const handleSend = () => {
     const trimmedMessage = newMessage.trim();
     if (!trimmedMessage && !selectedFile) return; 
@@ -40,7 +29,7 @@ const inactiveConversationMessageHandler = async (message,file=null) => {
         file: selectedFile || null,
       });
     } else {
-      inactiveConversationMessageHandler(trimmedMessage || null, selectedFile || null);
+      inactiveConversationMessageSend(trimmedMessage||null,selectedFile||null)
     }
 
     setNewMessage("");

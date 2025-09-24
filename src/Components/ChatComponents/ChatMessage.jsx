@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { getQuickReplyContent } from '../../Services/twilioService';
 
 const ChatMessage = ({ 
   message, 
@@ -6,10 +7,27 @@ const ChatMessage = ({
   author, 
   profileImageUrl, 
   timestamp,
-  media 
+  media,
+  content,
 }) => {
+  const [isQuickReply,setIsQuickReply] = useState(false)
+  const [quickReplyData,setQuickReplyData] = useState()
+
+  useEffect(() => {
+    console.log(content)
+    if (content !=null){
+      setIsQuickReply(true);
+       const qr = getQuickReplyContent();
+       console.log(qr)
+       setQuickReplyData(qr)
+
+
+    }
+  },[content])
+
   return (
     <div className={`chat ${isCurrentUser ? 'chat-end' : 'chat-start'}`}>
+      {/* Avatar */}
       <div className="chat-image avatar">
         <div className="w-10 rounded-full">
           <img
@@ -19,6 +37,7 @@ const ChatMessage = ({
         </div>
       </div>
 
+      {/* Header */}
       <div className="chat-header">
         {author}
         <time className="text-xs opacity-50 ml-2">
@@ -26,8 +45,33 @@ const ChatMessage = ({
         </time>
       </div>
 
+      {/* Message Bubble */}
       <div className="chat-bubble">
-        {media ? (
+        {isQuickReply && quickReplyData ? (
+          <div>
+  <p>
+    {
+      quickReplyData.types["twilio/quick-reply"].body.replace(
+        "{{1}}",
+        quickReplyData.variables?.["1"] || author
+      )
+    }
+  </p>
+
+  <div className="flex gap-2 mt-2">
+    {quickReplyData.types["twilio/quick-reply"].actions.map((action) => (
+      <button
+        key={action.id}
+        className="bg-teal-500 text-white px-3 py-1 rounded hover:bg-teal-600"
+        onClick={() => console.log("Quick reply clicked:", action.id)}
+      >
+        {action.title}
+      </button>
+    ))}
+  </div>
+</div>
+
+        ) : media ? (
           media.contentType.startsWith("image/") ? (
             <img 
               src={media.url} 
@@ -49,6 +93,7 @@ const ChatMessage = ({
         )}
       </div>
 
+      {/* Footer */}
       <div className="chat-footer opacity-50">
         {isCurrentUser ? 'Delivered' : ''}
       </div>

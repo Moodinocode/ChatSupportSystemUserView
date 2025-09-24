@@ -99,12 +99,14 @@ const useConversationStore = create((set, get) => ({
   buildConversationData: async (conv) => {
     const participants = await conv.getParticipants();
     const messagesPaginator = await conv.getMessages(20); // last 20 messages
+    // console.log("Paginator: "+JSON.stringify(messagesPaginator)) --> error
     
     const messages = await Promise.all(messagesPaginator.items.map(async (m) => ({
         sid: m.sid,
         author: m.author,
         body: m.body,
         timestamp: m.dateCreated,
+        contentSid: m.contentSid,
         media: m.media
           ? { 
               url: await m.media.getContentTemporaryUrl(), 
@@ -112,6 +114,7 @@ const useConversationStore = create((set, get) => ({
               filename: m.media.filename
             }
           : null,
+          
       })));
       return {
         conversation: { sid: conv.sid, friendlyName: conv.friendlyName },
@@ -120,7 +123,8 @@ const useConversationStore = create((set, get) => ({
         lastActivity: messagesPaginator.items.length > 0
           ? messagesPaginator.items[messagesPaginator.items.length - 1].dateCreated.getTime()
           : 0,
-        messages
+        messages,
+      
       };
 
    
@@ -148,6 +152,7 @@ const useConversationStore = create((set, get) => ({
   },
 
   appendMessage: (msg) => {
+    
   const { conversations, activeConversation,client } = get();
 if (msg.author === client.user.identity) {
     console.log("Skipping toast for my own message:", msg.body);
@@ -167,6 +172,7 @@ if (msg.author === client.user.identity) {
   const newMessage = {
     sid: msg.sid,
     author: msg.author,
+    contentSid: msg.contentSid,
     body: msg.body,
     timestamp: msg.dateCreated,
     media: msg.media || null,         // store media object
@@ -368,10 +374,13 @@ if (msg.author === client.user.identity) {
 
     try {
       const conv = await client.getConversationBySid(sid);
+      console.log("test")
 
 
       if (text && !file) {
+        console.log("test -t1")
         const messageIndex = await conv.sendMessage(text);
+        console.log("test -t2")
         return;
       }
 
@@ -387,6 +396,7 @@ if (msg.author === client.user.identity) {
       if (text && file) {
         const formData = new FormData();
         formData.append("media", file);
+        console.log("media&text")
 
         const messageIndex = await conv.sendMessage(formData, { body: text });
         console.log("Text + Media message sent:", messageIndex);

@@ -63,6 +63,7 @@ const CustomerServiceChatInterface = () => {
               author={msg.author}
               profileImageUrl={getUserProfileImage(msg.author)}
               timestamp={msg.timestamp}
+              content={msg.contentSid}
             />
           ))
         ) : (

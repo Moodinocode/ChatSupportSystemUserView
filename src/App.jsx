@@ -30,7 +30,7 @@ function App() {
   return (
     <AuthProvider>
       <RouterProvider router={router} />
-      <ToastContainer
+      {/* <ToastContainer
           position="bottom-right"
           autoClose={5000}
           hideProgressBar={false}
@@ -41,7 +41,7 @@ function App() {
           draggable
           pauseOnHover
           theme="colored"
-        />
+        /> */}
     </AuthProvider>
   )
   }

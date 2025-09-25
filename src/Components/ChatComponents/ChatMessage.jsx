@@ -8,6 +8,8 @@ const ChatMessage = ({
   profileImageUrl, 
   timestamp,
   media,
+    mediaUrl, // Add this prop
+  loadingMedia, // Add this prop
   content,
 }) => {
   const [isQuickReply,setIsQuickReply] = useState(false)
@@ -24,6 +26,59 @@ const ChatMessage = ({
 
     }
   },[content])
+
+
+   // Function to render media content
+  const renderMedia = () => {
+    if (!media) return null;
+
+    // If we have mediaUrl (from temporary URL), use it
+    const imageUrl = mediaUrl || (media && media.url);
+    
+    if (loadingMedia) {
+      return (
+        <div className="flex items-center justify-center p-4 bg-base-200 rounded max-w-xs">
+          <div className="loading loading-spinner loading-sm mr-2"></div>
+          <span className="text-sm">Loading media...</span>
+        </div>
+      );
+    }
+
+    if (!imageUrl) {
+      return (
+        <div className="flex items-center justify-center p-4 bg-base-200 rounded max-w-xs">
+          <span className="text-sm">Media content unavailable</span>
+        </div>
+      );
+    }
+
+    if (media.contentType?.startsWith("image/")) {
+      return (
+        <img 
+          src={imageUrl} 
+          alt="sent media" 
+          className="max-w-xs rounded" 
+          onError={(e) => {
+            console.error('Image failed to load:', imageUrl);
+            e.target.style.display = 'none';
+          }}
+        />
+      );
+    } else if (media.contentType?.startsWith("video/")) {
+      return (
+        <video controls className="max-w-xs rounded">
+          <source src={imageUrl} type={media.contentType} />
+          Your browser does not support the video tag.
+        </video>
+      );
+    } else {
+      return (
+        <a href={imageUrl} target="_blank" rel="noreferrer" className="text-blue-500 underline">
+          {media.filename || 'Download file'}
+        </a>
+      );
+    }
+  };
 
   return (
     <div className={`chat ${isCurrentUser ? 'chat-end' : 'chat-start'}`}>
@@ -49,7 +104,7 @@ const ChatMessage = ({
       <div className="chat-bubble">
         {isQuickReply && quickReplyData ? (
           <div>
-  <p>
+    <p>
     {
       quickReplyData.types["twilio/quick-reply"].body.replace(
         "{{1}}",
@@ -58,37 +113,20 @@ const ChatMessage = ({
     }
   </p>
 
-  <div className="flex gap-2 mt-2">
-    {quickReplyData.types["twilio/quick-reply"].actions.map((action) => (
-      <button
-        key={action.id}
-        className="bg-teal-500 text-white px-3 py-1 rounded hover:bg-teal-600"
-        onClick={() => console.log("Quick reply clicked:", action.id)}
-      >
-        {action.title}
-      </button>
-    ))}
-  </div>
-</div>
+          <div className="flex gap-2 mt-2">
+              {quickReplyData.types["twilio/quick-reply"].actions.map((action) => (
+                <button
+                  key={action.id}
+                  className="bg-teal-500 text-white px-3 py-1 rounded hover:bg-teal-600"
+                  onClick={() => console.log("Quick reply clicked:", action.id)}
+                >
+                  {action.title}
+                </button>
+              ))}
+            </div>
+          </div>
 
-        ) : media ? (
-          media.contentType.startsWith("image/") ? (
-            <img 
-              src={media.url} 
-              alt="sent media" 
-              className="max-w-xs rounded" 
-            />
-          ) : media.contentType.startsWith("video/") ? (
-            <video controls className="max-w-xs rounded">
-              <source src={media.url} type={media.contentType} />
-              Your browser does not support the video tag.
-            </video>
-          ) : (
-            <a href={media.url} target="_blank" rel="noreferrer" className="text-blue-500 underline">
-              Download file
-            </a>
-          )
-        ) : (
+        ) : media ? renderMedia(): (
           message
         )}
       </div>

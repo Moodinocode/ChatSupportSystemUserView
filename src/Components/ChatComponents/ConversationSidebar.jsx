@@ -14,18 +14,6 @@ const ConversationSidebar = () => {
   const [showSidebar, setShowSidebar] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
-
-  useEffect(() => {
-    setTimeout(() => {}, 1000); 
-    console.log(conversations);
-  }, [conversations]);
-
-
-
-
-
-
-
   const filteredConversations = Array.from(conversations)
     .filter(convData => 
       (convData.conversation.friendlyName || 'Unnamed').toLowerCase().includes(searchTerm.toLowerCase())

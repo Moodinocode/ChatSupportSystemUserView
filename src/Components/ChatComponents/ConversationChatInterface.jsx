@@ -6,7 +6,8 @@ import ChatMessage from './ChatMessage';
 import TypingIndicator from './TypingIndicator';
 
 const CustomerServiceChatInterface = () => {
-  const {activeConversation,inactiveConversationMessageSend, sendMessage } = useConversationStore();
+  const {activeConversation,inactiveConversationMessageSend, sendMessage,chatinitLoading } = useConversationStore();
+
   const { user } = useAuth();
   const [selectedFile, setSelectedFile] = useState(null);
   const [newMessage, setNewMessage] = useState("");
@@ -42,6 +43,7 @@ const CustomerServiceChatInterface = () => {
     if (username === user?.username) return user?.profileImageUrl;
     return null; // No other participants to show
   };
+  
 
 
   return (
@@ -59,6 +61,8 @@ const CustomerServiceChatInterface = () => {
               key={msg.sid}
               message={msg.body}
               media={msg.media}
+              mediaUrl={msg.mediaUrl} // Pass the temporary URL
+              loadingMedia={msg.loadingMedia} // Pass loading state
               isCurrentUser={msg.author === user.username}
               author={msg.author}
               profileImageUrl={getUserProfileImage(msg.author)}
@@ -66,11 +70,23 @@ const CustomerServiceChatInterface = () => {
               content={msg.contentSid}
             />
           ))
-        ) : (
+        ) : chatinitLoading? (
+          <div className="flex justify-end">
+            <div className="flex items-center gap-2 bg-primary text-primary-content px-4 py-2 rounded-lg max-w-xs">
+              <span className="loading loading-spinner loading-sm"></span>
+              <span className="text-sm">Sending...</span>
+            </div>
+          </div>
+        ):(
           <div className="flex items-center justify-center h-full">
             <p className="text-base-content/60 text-center">Send Message to Chat with Customer support</p>
           </div>
         )}
+
+
+
+
+
         <div ref={messagesEndRef} />
       </div>
 

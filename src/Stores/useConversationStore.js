@@ -1,3 +1,4 @@
+//UserView
 import { create } from "zustand";
 import { Client } from "@twilio/conversations";
 import {updateTypingIndicator}  from "../Utils/updateTypingIndicator";
@@ -10,6 +11,7 @@ const useConversationStore = create((set, get) => ({
   conversations: [], 
   activeConversation: null,
   loading: true,
+  chatinitLoading:false,
   error: null,
   typingStatus: {},
  
@@ -22,11 +24,11 @@ const useConversationStore = create((set, get) => ({
       if (!token) throw new Error("Missing Twilio token in session storage");
     
       const client = new Client(token);
+      console.log(client)
 
 
-      client.on('initialized', () =>console.log("Twilio client initialized"));
+      client.on('initialized', () =>console.log("Twilio client initialized" + Date.now()));
       client.on("conversationLeft", (conv) => {
-        
         const { conversations } = get();
         set({
           conversations: conversations.filter(
@@ -50,13 +52,15 @@ const useConversationStore = create((set, get) => ({
       set({ client, loading: false });
 
 
+
+
       client.on('tokenAboutToExpire', async () => {
         const refreshToken = await getToken();
         client.updateToken(refreshToken);
       })
 
       client.on('tokenExpired', async () => {
-                const refreshToken = await getToken();
+        const refreshToken = await getToken();
         client.updateToken(refreshToken);
       })
 
@@ -243,6 +247,32 @@ if (msg.author === client.user.identity) {
       }
 
       set({ conversations: updatedConversations, activeConversation: updatedActiveConv });
+    }).catch((error) => {
+      console.error('Failed to get media URL:', error);
+      // Update loading state even on error
+      const updatedConversations = get().conversations.map((c) => {
+        if (c.conversation.sid === msg.conversation.sid) {
+          return {
+            ...c,
+            messages: c.messages.map(m =>
+              m.sid === msg.sid ? { ...m, loadingMedia: false } : m
+            ),
+          };
+        }
+        return c;
+      });
+
+      let updatedActiveConv = get().activeConversation;
+      if (updatedActiveConv && updatedActiveConv.conversation.sid === msg.conversation.sid) {
+        updatedActiveConv = {
+          ...updatedActiveConv,
+          messages: updatedActiveConv.messages.map(m =>
+            m.sid === msg.sid ? { ...m, loadingMedia: false } : m
+          ),
+        };
+      }
+
+      set({ conversations: updatedConversations, activeConversation: updatedActiveConv });
     });
   }
   },
@@ -279,6 +309,7 @@ if (msg.author === client.user.identity) {
 
   // ----------- Actions ------------
   getConversations: async () => {
+    console.log("Fetching")
     set({ loading: true, error: null });
     const { client } = get();
     if (!client) {
@@ -288,11 +319,11 @@ if (msg.author === client.user.identity) {
     }
     try {
       const convs = await client.getSubscribedConversations();
-      console.log("Fetched conversations:", convs);
+      //console.log("Fetched conversations:", convs);
       const conversations = await Promise.all(
         convs.items.map((conv) => get().buildConversationData(conv))
       );
-      console.log("Built conversation data:", conversations);
+      //console.log("Built conversation data:", conversations);
       set({ conversations, loading: false });
     } catch (error) {
       console.error("Error fetching conversations:", error);
@@ -348,22 +379,35 @@ if (msg.author === client.user.identity) {
   },
 
   inactiveConversationMessageSend: async (message,file=null) => {
-    const response = await initiateConversation(message);
-    const twilioToken = response.data.twilioToken;    
-    const conversationId = response.data.conversationId;
+    const {initClient, setActiveConversation,sendMessage,loading}=get();
+    set({chatinitLoading: true})
+    // Start both API calls in parallel
+    const twilioTokenPromise = getToken();
+    const conversationIdPromise = initiateConversation(message);
+
+    // Wait for token and store it
+    const twilioTokenResponse = await twilioTokenPromise;
+    const twilioToken = twilioTokenResponse.data.twilioToken;
     sessionStorage.setItem("twilioToken", twilioToken);
 
-    const {initClient, setActiveConversation,sendMessage}=get();
+   
+      console.log("Before init" +Date.now())
 
     const client = await initClient();
+   
     await new Promise((resolve) => {
       if (client.state === "initialized") return resolve();
       client.on("initialized", resolve);
     });
 
-    
+    const conversationIdResponse = await conversationIdPromise;
+    const conversationId = conversationIdResponse.data.conversationId;
+
+     
     await setActiveConversation({ conversation: { sid: conversationId } });
     await sendMessage(conversationId, { text: message, file });
+    set({chatinitLoading: false})
+     
   },
 
   

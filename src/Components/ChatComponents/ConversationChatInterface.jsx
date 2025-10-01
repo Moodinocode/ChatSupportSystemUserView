@@ -4,6 +4,7 @@ import { Paperclip } from "lucide-react";
 import { useAuth } from "../../Context/AuthContext";
 import ChatMessage from './ChatMessage';
 import TypingIndicator from './TypingIndicator';
+import SystemMessage from './SystemMessage';
 
 const CustomerServiceChatInterface = () => {
   const {activeConversation,inactiveConversationMessageSend, sendMessage,chatinitLoading } = useConversationStore();
@@ -57,6 +58,12 @@ const CustomerServiceChatInterface = () => {
       <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-base-100">
         {activeConversation && activeConversation.messages.length > 0 ? (
           activeConversation.messages.map((msg) => (
+            msg.media?.contentType?.startsWith('application/x-vnd.com.twilio.rich.twilio.text') ? (
+               <SystemMessage 
+                  key={msg.sid}
+                  variables={msg.body}
+                />
+              ) :
             <ChatMessage
               key={msg.sid}
               message={msg.body}

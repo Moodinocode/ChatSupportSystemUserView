@@ -26,6 +26,19 @@ const ChatMessage = ({
 
     }
   },[content])
+    // At the top of ChatMessage component, before the return statement
+  if (content?.type?.startsWith('twilio/participant') || 
+      content?.type?.startsWith('twilio/conversation') ||
+      content?.type?.startsWith('twilio/topic')) {
+    return (
+      <SystemMessage 
+        type={content.type}
+        author={author}
+        variables={content.variables}
+        timestamp={timestamp}
+      />
+    );
+}
 
 
    // Function to render media content

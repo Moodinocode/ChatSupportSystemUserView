@@ -404,9 +404,9 @@ if (msg.author === client.user.identity) {
     const conversationId = conversationIdResponse.data.conversationId;
 
      
-    await setActiveConversation({ conversation: { sid: conversationId } });
-    await sendMessage(conversationId, { text: message, file });
-    set({chatinitLoading: false})
+     await setActiveConversation({ conversation: { sid: conversationId } });
+     sendMessage(conversationId, { text: message, file });
+     await set({chatinitLoading: false})
      
   },
 
